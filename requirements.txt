@@ -1,0 +1,14 @@
+# Veritabanı bağlantı kütüphaneleri
+mysql-connector-python==8.2.0
+pyodbc==5.0.1
+
+# Çeviri kütüphanesi
+deep-translator==1.11.4
+
+# GUI kütüphanesi (genellikle Python ile birlikte gelir)
+# tkinter - Python'da yerleşik olarak bulunur, ekstra kurulum gerektirmez
+
+# Ek gereksinimler (deep-translator bağımlılıkları)
+requests>=2.25.1
+beautifulsoup4>=4.9.3
+googletrans>=3.1.0a0
