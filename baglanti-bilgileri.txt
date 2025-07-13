@@ -1,0 +1,6 @@
+db_type=mysql
+host=localhost
+database=sakila
+username=root
+password=
+port=3306
