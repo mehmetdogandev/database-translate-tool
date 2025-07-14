@@ -39,6 +39,10 @@ Bu araç, veritabanınızdaki metin içeriklerini otomatik olarak çevirmek içi
         <img src="content/get-table.png" width="100%"/><br/>
         <b>Tabloları Listeleme</b>
       </td>
+        <td align="center" width="50%">
+        <img src="content/select-table.png" width="100%"/><br/>
+        <b>Listeden Tablo Seçme</b>
+      </td>
       <td align="center" width="50%">
         <img src="content/film-table-data-translate.png" width="100%"/><br/>
         <b>Veri Çevirisi</b>
