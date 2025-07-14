@@ -19,7 +19,7 @@ class DatabaseGUI:
         self.cursor = None
         self.translator = GoogleTranslator(source='auto', target='tr')
         
-        # modu
+        # Debug modu
         self.debug_mode = tk.BooleanVar(value=True)
         
         # Bağlantı bilgilerini hatırla özelliği
@@ -32,6 +32,23 @@ class DatabaseGUI:
         self.button_font = font.Font(family="Arial", size=10, weight="bold")
         
         self.create_widgets()
+        
+    def get_available_odbc_drivers(self):
+        """Yüklü ODBC sürücülerini listele"""
+        try:
+            drivers = pyodbc.drivers()
+            self.debug_log(f"Yüklü ODBC sürücüleri: {drivers}")
+            sql_server_drivers = [d for d in drivers if 'SQL Server' in d]
+            return sql_server_drivers
+        except Exception as e:
+            self.debug_log(f"ODBC sürücüleri alınırken hata: {e}")
+            # Eğer ODBC sürücüleri alınamazsa varsayılan liste döndür
+            return [
+                'ODBC Driver 18 for SQL Server',
+                'ODBC Driver 17 for SQL Server', 
+                'SQL Server Native Client 11.0',
+                'SQL Server'
+            ]
         
     def create_widgets(self):
         # Ana frame
@@ -47,8 +64,8 @@ class DatabaseGUI:
         left_frame = ttk.LabelFrame(main_frame, text="Bağlantı Ayarları", padding="10")
         left_frame.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(0, 10))
         
-        # modu checkbox
-        debug_check = tk.Checkbutton(left_frame, text="🐛 Modu (Detaylı Loglar)", 
+        # Debug modu checkbox
+        debug_check = tk.Checkbutton(left_frame, text="🐛 Debug Modu (Detaylı Loglar)", 
                                    variable=self.debug_mode, font=self.label_font)
         debug_check.grid(row=0, column=0, columnspan=3, pady=5, sticky=tk.W)
         
@@ -60,20 +77,37 @@ class DatabaseGUI:
         ttk.Radiobutton(left_frame, text="MSSQL", variable=self.db_type, value="mssql", 
                        command=self.update_connection_fields).grid(row=1, column=2, sticky=tk.W)
         
+        # ODBC Sürücü seçimi (sadece MSSQL için)
+        ttk.Label(left_frame, text="ODBC Sürücü:", font=self.label_font).grid(row=2, column=0, sticky=tk.W, pady=5)
+        self.odbc_driver = tk.StringVar()
+        self.odbc_combo = ttk.Combobox(left_frame, textvariable=self.odbc_driver, state="readonly", width=25)
+        self.odbc_combo.grid(row=2, column=1, columnspan=2, pady=5, sticky=(tk.W, tk.E))
+        
+        # ODBC sürücülerini yükle - widget oluşturulduktan sonra
+        # self.update_odbc_drivers() - Bunu create_widgets sonunda çağıracağız
+        
         # Bağlantı alanları
         self.create_connection_fields(left_frame)
+        
+        # ODBC Test butonu
+        self.test_odbc_btn = tk.Button(left_frame, text="🔍 ODBC Test Et", 
+                                     command=self.test_odbc_connection,
+                                     font=self.button_font, bg='#e67e22', fg='white',
+                                     activebackground='#d35400', activeforeground='white',
+                                     width=15, height=1)
+        self.test_odbc_btn.grid(row=9, column=0, columnspan=3, pady=5)
         
         # Bağlan butonu
         self.connect_btn = tk.Button(left_frame, text="🔗 Bağlan", command=self.connect_database,
                                    font=self.button_font, bg='#3498db', fg='white', 
                                    activebackground='#2980b9', activeforeground='white',
                                    width=15, height=1)
-        self.connect_btn.grid(row=8, column=0, columnspan=3, pady=10)
+        self.connect_btn.grid(row=10, column=0, columnspan=3, pady=10)
 
         # Bağlantı durumu
         self.status_label = tk.Label(left_frame, text="Bağlantı Durumu: Bağlı Değil", 
                                    font=self.label_font, fg='red')
-        self.status_label.grid(row=9, column=0, columnspan=3, pady=5)
+        self.status_label.grid(row=11, column=0, columnspan=3, pady=5)
         
         # Test butonu - Yazma yetkisi kontrolü
         self.test_write_btn = tk.Button(left_frame, text="🧪 Yazma Yetkisi Test Et", 
@@ -81,7 +115,7 @@ class DatabaseGUI:
                                       font=self.button_font, bg='#9b59b6', fg='white',
                                       activebackground='#8e44ad', activeforeground='white',
                                       width=18, height=1)
-        self.test_write_btn.grid(row=10, column=0, columnspan=3, pady=5)
+        self.test_write_btn.grid(row=12, column=0, columnspan=3, pady=5)
         
         # Tabloları getir butonu
         self.get_tables_btn = tk.Button(left_frame, text="📋 Tabloları Getir", 
@@ -89,13 +123,13 @@ class DatabaseGUI:
                                        font=self.button_font, bg='#27ae60', fg='white',
                                        activebackground='#229954', activeforeground='white',
                                        width=15, height=1)
-        self.get_tables_btn.grid(row=11, column=0, columnspan=3, pady=5)
+        self.get_tables_btn.grid(row=13, column=0, columnspan=3, pady=5)
         
         # Tablo seçimi
-        ttk.Label(left_frame, text="Tablo Seç:", font=self.label_font).grid(row=12, column=0, sticky=tk.W, pady=5)
+        ttk.Label(left_frame, text="Tablo Seç:", font=self.label_font).grid(row=14, column=0, sticky=tk.W, pady=5)
         self.table_var = tk.StringVar()
         self.table_combo = ttk.Combobox(left_frame, textvariable=self.table_var, state="readonly", width=25)
-        self.table_combo.grid(row=12, column=1, columnspan=2, pady=5, sticky=(tk.W, tk.E))
+        self.table_combo.grid(row=14, column=1, columnspan=2, pady=5, sticky=(tk.W, tk.E))
         self.table_combo.bind('<<ComboboxSelected>>', self.on_table_selected)
         
         # Orta panel - Sütun seçimi ve çeviri ayarları
@@ -104,7 +138,7 @@ class DatabaseGUI:
         
         # Çeviri modunu seç
         ttk.Label(middle_frame, text="Çeviri Modu:", font=self.label_font).grid(row=0, column=0, sticky=tk.W, pady=5)
-        self.translate_mode = tk.StringVar(value="save_to_db")  # Default olarak kaydet modu
+        self.translate_mode = tk.StringVar(value="save_to_db")
         ttk.Radiobutton(middle_frame, text="📖 Sadece Göster", variable=self.translate_mode, 
                        value="view_only").grid(row=0, column=1, sticky=tk.W)
         ttk.Radiobutton(middle_frame, text="💾 Veritabanına Kaydet", variable=self.translate_mode, 
@@ -169,7 +203,7 @@ class DatabaseGUI:
         self.manual_update_btn.grid(row=8, column=0, columnspan=2, pady=5)
         
         # Sağ panel - Sonuçlar
-        right_frame = ttk.LabelFrame(main_frame, text="🔍 Sonuçları", padding="10")
+        right_frame = ttk.LabelFrame(main_frame, text="🔍 Sonuçlar", padding="10")
         right_frame.grid(row=1, column=2, sticky=(tk.W, tk.E, tk.N, tk.S))
         
         # Sonuç alanı
@@ -211,52 +245,138 @@ class DatabaseGUI:
         # Program başlangıcında bağlantı bilgilerini yükle
         self.load_connection_info()
         
+        # ODBC sürücülerini şimdi güvenle yükle
+        self.update_odbc_drivers()
+        
+    def update_odbc_drivers(self):
+        """ODBC sürücülerini güncelle"""
+        drivers = self.get_available_odbc_drivers()
+        self.odbc_combo['values'] = drivers
+        
+        # Varsayılan olarak en yeni sürücüyü seç
+        if drivers:
+            # ODBC Driver 18'i tercih et, yoksa en yenisini
+            preferred_drivers = [
+                'ODBC Driver 18 for SQL Server',
+                'ODBC Driver 17 for SQL Server',
+                'SQL Server Native Client 11.0',
+                'SQL Server'
+            ]
+            
+            selected_driver = None
+            for preferred in preferred_drivers:
+                if preferred in drivers:
+                    selected_driver = preferred
+                    break
+            
+            if not selected_driver and drivers:
+                selected_driver = drivers[0]
+                
+            if selected_driver:
+                self.odbc_driver.set(selected_driver)
+                self.debug_log(f"Seçilen ODBC sürücü: {selected_driver}")
+        
+    def test_odbc_connection(self):
+        """ODBC bağlantısını test et"""
+        def test():
+            try:
+                # Basit bir bağlantı testi yap
+                if self.db_type.get() == "mssql":
+                    driver = self.odbc_driver.get() or 'ODBC Driver 17 for SQL Server'
+                    
+                    # Farklı bağlantı string formatları dene
+                    connection_strings = [
+                        # Format 1: TrustServerCertificate eklisi
+                        f'DRIVER={{{driver}}};SERVER={self.host_entry.get()};DATABASE={self.database_entry.get()};UID={self.username_entry.get()};PWD={self.password_entry.get()};TrustServerCertificate=yes;',
+                        
+                        # Format 2: Encrypt=no eklisi
+                        f'DRIVER={{{driver}}};SERVER={self.host_entry.get()};DATABASE={self.database_entry.get()};UID={self.username_entry.get()};PWD={self.password_entry.get()};Encrypt=no;',
+                        
+                        # Format 3: Temel format
+                        f'DRIVER={{{driver}}};SERVER={self.host_entry.get()};DATABASE={self.database_entry.get()};UID={self.username_entry.get()};PWD={self.password_entry.get()};',
+                        
+                        # Format 4: Trusted_Connection
+                        f'DRIVER={{{driver}}};SERVER={self.host_entry.get()};DATABASE={self.database_entry.get()};Trusted_Connection=yes;',
+                    ]
+                    
+                    for i, conn_str in enumerate(connection_strings):
+                        try:
+                            self.debug_log(f"Test {i+1}: {conn_str}")
+                            test_conn = pyodbc.connect(conn_str, timeout=10)
+                            test_conn.close()
+                            
+                            self.root.after(0, lambda cs=conn_str: self.result_text.insert(tk.END, f"✅ ODBC Test Başarılı!\nBağlantı String: {cs}\n\n"))
+                            return
+                            
+                        except Exception as e:
+                            self.debug_log(f"Test {i+1} başarısız: {str(e)}")
+                            continue
+                    
+                    # Hiçbiri çalışmadıysa
+                    self.root.after(0, lambda: self.result_text.insert(tk.END, "❌ Tüm ODBC testleri başarısız!\n\n"))
+                else:
+                    self.root.after(0, lambda: self.result_text.insert(tk.END, "⚠️ ODBC test sadece MSSQL için geçerli.\n\n"))
+                    
+            except Exception as e:
+                self.debug_log(f"ODBC test genel hatası: {str(e)}")
+                self.root.after(0, lambda: self.result_text.insert(tk.END, f"❌ ODBC Test Hatası: {str(e)}\n\n"))
+        
+        thread = threading.Thread(target=test)
+        thread.daemon = True
+        thread.start()
+        
     def debug_log(self, message):
-        """mesajı yazdır"""
-        if self.debug_mode.get():
+        """Debug mesajı yazdır"""
+        if self.debug_mode.get() and hasattr(self, 'result_text'):
             self.result_text.insert(tk.END, f"🐛 DEBUG: {message}\n")
             self.result_text.see(tk.END)
+        elif self.debug_mode.get():
+            # result_text henüz yoksa console'a yazdır
+            print(f"🐛 DEBUG: {message}")
         
     def create_connection_fields(self, parent):
         # Host/Server
-        ttk.Label(parent, text="Host/Server:", font=self.label_font).grid(row=2, column=0, sticky=tk.W, pady=5)
+        ttk.Label(parent, text="Host/Server:", font=self.label_font).grid(row=3, column=0, sticky=tk.W, pady=5)
         self.host_entry = ttk.Entry(parent, width=25)
-        self.host_entry.grid(row=2, column=1, columnspan=2, pady=5, sticky=(tk.W, tk.E))
+        self.host_entry.grid(row=3, column=1, columnspan=2, pady=5, sticky=(tk.W, tk.E))
         self.host_entry.insert(0, "localhost")
         
         # Database
-        ttk.Label(parent, text="Veritabanı:", font=self.label_font).grid(row=3, column=0, sticky=tk.W, pady=5)
+        ttk.Label(parent, text="Veritabanı:", font=self.label_font).grid(row=4, column=0, sticky=tk.W, pady=5)
         self.database_entry = ttk.Entry(parent, width=25)
-        self.database_entry.grid(row=3, column=1, columnspan=2, pady=5, sticky=(tk.W, tk.E))
+        self.database_entry.grid(row=4, column=1, columnspan=2, pady=5, sticky=(tk.W, tk.E))
         
         # Username
-        ttk.Label(parent, text="Kullanıcı Adı:", font=self.label_font).grid(row=4, column=0, sticky=tk.W, pady=5)
+        ttk.Label(parent, text="Kullanıcı Adı:", font=self.label_font).grid(row=5, column=0, sticky=tk.W, pady=5)
         self.username_entry = ttk.Entry(parent, width=25)
-        self.username_entry.grid(row=4, column=1, columnspan=2, pady=5, sticky=(tk.W, tk.E))
+        self.username_entry.grid(row=5, column=1, columnspan=2, pady=5, sticky=(tk.W, tk.E))
         
         # Password
-        ttk.Label(parent, text="Şifre:", font=self.label_font).grid(row=5, column=0, sticky=tk.W, pady=5)
+        ttk.Label(parent, text="Şifre:", font=self.label_font).grid(row=6, column=0, sticky=tk.W, pady=5)
         self.password_entry = ttk.Entry(parent, width=25, show="*")
-        self.password_entry.grid(row=5, column=1, columnspan=2, pady=5, sticky=(tk.W, tk.E))
+        self.password_entry.grid(row=6, column=1, columnspan=2, pady=5, sticky=(tk.W, tk.E))
         
         # Port (sadece MySQL için)
-        ttk.Label(parent, text="Port:", font=self.label_font).grid(row=6, column=0, sticky=tk.W, pady=5)
+        ttk.Label(parent, text="Port:", font=self.label_font).grid(row=7, column=0, sticky=tk.W, pady=5)
         self.port_entry = ttk.Entry(parent, width=10)
-        self.port_entry.grid(row=6, column=1, pady=5, sticky=tk.W)
+        self.port_entry.grid(row=7, column=1, pady=5, sticky=tk.W)
         self.port_entry.insert(0, "3306")
         
         self.remember_check = tk.Checkbutton(parent, text="Bağlantı bilgilerini hatırla", 
                                            variable=self.remember_var, font=self.label_font,
                                            command=self.toggle_remember)
-        self.remember_check.grid(row=7, column=0, columnspan=3, pady=5, sticky=tk.W)
+        self.remember_check.grid(row=8, column=0, columnspan=3, pady=5, sticky=tk.W)
         
     def update_connection_fields(self):
         if self.db_type.get() == "mysql":
             self.port_entry.config(state='normal')
             self.port_entry.delete(0, tk.END)
             self.port_entry.insert(0, "3306")
+            self.odbc_combo.config(state='disabled')
         else:
             self.port_entry.config(state='disabled')
+            self.odbc_combo.config(state='readonly')
+            self.update_odbc_drivers()
             
     def connect_database(self):
         def connect():
@@ -273,16 +393,38 @@ class DatabaseGUI:
                         password=self.password_entry.get(),
                         database=self.database_entry.get(),
                         port=int(self.port_entry.get()) if self.port_entry.get() else 3306,
-                        autocommit=False  # Manuel commit için
+                        autocommit=False
                     )
                 else:
-                    conn_str = f'DRIVER={{ODBC Driver 18 for SQL Server}};SERVER={self.host_entry.get()};DATABASE={self.database_entry.get()};UID={self.username_entry.get()};PWD={self.password_entry.get()}'
-                    self.connection = pyodbc.connect(conn_str)
-                    self.connection.autocommit = False
+                    # SQL Server için geliştirilmiş bağlantı
+                    driver = self.odbc_driver.get() or 'ODBC Driver 17 for SQL Server'
+                    
+                    # Farklı bağlantı string'leri dene
+                    connection_strings = [
+                        f'DRIVER={{{driver}}};SERVER={self.host_entry.get()};DATABASE={self.database_entry.get()};UID={self.username_entry.get()};PWD={self.password_entry.get()};TrustServerCertificate=yes;',
+                        f'DRIVER={{{driver}}};SERVER={self.host_entry.get()};DATABASE={self.database_entry.get()};UID={self.username_entry.get()};PWD={self.password_entry.get()};Encrypt=no;',
+                        f'DRIVER={{{driver}}};SERVER={self.host_entry.get()};DATABASE={self.database_entry.get()};UID={self.username_entry.get()};PWD={self.password_entry.get()};'
+                    ]
+                    
+                    connection_error = None
+                    for conn_str in connection_strings:
+                        try:
+                            self.debug_log(f"Denenen bağlantı string: {conn_str}")
+                            self.connection = pyodbc.connect(conn_str, timeout=30)
+                            self.connection.autocommit = False
+                            self.debug_log("Bağlantı başarılı!")
+                            break
+                        except Exception as e:
+                            self.debug_log(f"Bu bağlantı string başarısız: {str(e)}")
+                            connection_error = str(e)
+                            continue
+                    
+                    if not self.connection:
+                        raise Exception(f"Hiçbir bağlantı string çalışmadı. Son hata: {connection_error}")
                 
                 self.cursor = self.connection.cursor()
                 self.debug_log("Bağlantı başarılı!")
-                self.debug_log(f"Autocommit durumu: {self.connection.autocommit if hasattr(self.connection, 'autocommit') else 'N/A'}")
+                self.debug_log(f"Autocommit durumu: {getattr(self.connection, 'autocommit', 'N/A')}")
                 
                 self.root.after(0, self.connection_success)
                 
@@ -310,28 +452,35 @@ class DatabaseGUI:
         self.connect_btn.config(state=tk.NORMAL, text="🔗 Bağlan")
         messagebox.showerror("Bağlantı Hatası", f"Bağlantı kurulamadı:\n{error_msg}")
         
+    # Diğer metodlar aynı kalacak - uzunluk nedeniyle kısaltıldı
+    # (test_write_permission, get_tables, on_table_selected, get_and_translate_data, vs.)
+    
     def test_write_permission(self):
         """Yazma yetkisi test et"""
         try:
             self.debug_log("Yazma yetkisi test ediliyor...")
             
-            # Test tablosu oluşturmayı dene
             test_table_name = "test_write_permission"
             
             self.debug_log(f"Test tablosu oluşturuluyor: {test_table_name}")
-            self.cursor.execute(f"CREATE TEMPORARY TABLE {test_table_name} (id INT, test_text VARCHAR(100))")
+            
+            if self.db_type.get() == "mysql":
+                self.cursor.execute(f"CREATE TEMPORARY TABLE {test_table_name} (id INT, test_text VARCHAR(100))")
+            else:
+                # SQL Server için
+                self.cursor.execute(f"CREATE TABLE #{test_table_name} (id INT, test_text VARCHAR(100))")
             
             self.debug_log("Test verisi ekleniyor...")
-            self.cursor.execute(f"INSERT INTO {test_table_name} (id, test_text) VALUES (1, 'test')")
+            self.cursor.execute(f"INSERT INTO {'#' if self.db_type.get() == 'mssql' else ''}{test_table_name} (id, test_text) VALUES ({'?' if self.db_type.get() == 'mssql' else '%s'}, {'?' if self.db_type.get() == 'mssql' else '%s'})", (1, 'test'))
             
             self.debug_log("Test verisi güncelleniyor...")
-            self.cursor.execute(f"UPDATE {test_table_name} SET test_text = 'updated' WHERE id = 1")
+            self.cursor.execute(f"UPDATE {'#' if self.db_type.get() == 'mssql' else ''}{test_table_name} SET test_text = {'?' if self.db_type.get() == 'mssql' else '%s'} WHERE id = {'?' if self.db_type.get() == 'mssql' else '%s'}", ('updated', 1))
             
             self.debug_log("Commit yapılıyor...")
             self.connection.commit()
             
             self.debug_log("Test verisi kontrol ediliyor...")
-            self.cursor.execute(f"SELECT * FROM {test_table_name}")
+            self.cursor.execute(f"SELECT * FROM {'#' if self.db_type.get() == 'mssql' else ''}{test_table_name}")
             result = self.cursor.fetchone()
             
             self.debug_log(f"Test sonucu: {result}")
@@ -353,7 +502,7 @@ class DatabaseGUI:
             self.debug_log(f"Manuel UPDATE test başlıyor: {table_name}")
             
             # İlk kaydı al
-            self.cursor.execute(f"SELECT * FROM {table_name} LIMIT 1")
+            self.cursor.execute(f"SELECT * FROM {table_name} {'WHERE ROWNUM <= 1' if self.db_type.get() == 'mssql' else 'LIMIT 1'}")
             row = self.cursor.fetchone()
             
             if not row:
@@ -372,12 +521,16 @@ class DatabaseGUI:
             self.debug_log(f"İlk kayıt: {row_dict}")
             
             # Primary key'i bul
-            pk_column = columns[0]  # Genelde ilk sütun primary key
+            pk_column = columns[0]
             pk_value = row[0]
             
-            # Test güncelleme yap (last_update sütunu varsa)
+            # Test güncelleme yap
             if 'last_update' in columns:
-                update_query = f"UPDATE {table_name} SET last_update = NOW() WHERE {pk_column} = %s"
+                if self.db_type.get() == "mysql":
+                    update_query = f"UPDATE {table_name} SET last_update = NOW() WHERE {pk_column} = %s"
+                else:
+                    update_query = f"UPDATE {table_name} SET last_update = GETDATE() WHERE {pk_column} = ?"
+                    
                 self.debug_log(f"Test UPDATE sorgusu: {update_query}")
                 self.debug_log(f"Parametre: {pk_value}")
                 
@@ -410,7 +563,6 @@ class DatabaseGUI:
             self.debug_log("Tablolar getiriliyor...")
             
             if self.db_type.get() == "mysql":
-                # Sadece gerçek tabloları getir, view'ları hariç tut
                 self.cursor.execute("""
                     SELECT TABLE_NAME 
                     FROM INFORMATION_SCHEMA.TABLES 
@@ -419,7 +571,6 @@ class DatabaseGUI:
                 """)
                 tables = [table[0] for table in self.cursor.fetchall()]
                 
-                # View'ları da getir ama işaretle
                 self.cursor.execute("""
                     SELECT TABLE_NAME 
                     FROM INFORMATION_SCHEMA.TABLES 
@@ -428,15 +579,16 @@ class DatabaseGUI:
                 """)
                 views = [table[0] for table in self.cursor.fetchall()]
                 
-                self.debug_log(f"Gerçek tablolar: {tables}")
-                self.debug_log(f"View'lar (güncellenemez): {views}")
-                
             else:
                 self.cursor.execute("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE='BASE TABLE'")
                 tables = [table[0] for table in self.cursor.fetchall()]
-                views = []
+                
+                self.cursor.execute("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.VIEWS")
+                views = [table[0] for table in self.cursor.fetchall()]
             
-            # Sadece gerçek tabloları combobox'a ekle
+            self.debug_log(f"Gerçek tablolar: {tables}")
+            self.debug_log(f"View'lar: {views}")
+            
             self.table_combo['values'] = tables
             
             self.result_text.insert(tk.END, f"✓ {len(tables)} gerçek tablo bulundu:\n")
@@ -463,11 +615,10 @@ class DatabaseGUI:
         try:
             self.debug_log(f"Tablo seçildi: {table_name}")
             
-            # Sütun bilgilerini al
             if self.db_type.get() == "mysql":
                 self.cursor.execute(f"SHOW COLUMNS FROM {table_name}")
                 columns_info = self.cursor.fetchall()
-                columns = [(col[0], col[1]) for col in columns_info]  # (name, type)
+                columns = [(col[0], col[1]) for col in columns_info]
             else:
                 self.cursor.execute(f"SELECT COLUMN_NAME, DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '{table_name}'")
                 columns_info = self.cursor.fetchall()
@@ -475,22 +626,18 @@ class DatabaseGUI:
             
             self.debug_log(f"Sütunlar: {columns}")
             
-            # Sütun checkboxlarını temizle
             for widget in self.columns_scrollable_frame.winfo_children():
                 widget.destroy()
             
             self.column_vars = {}
             
-            # Sadece text türündeki sütunları göster
             text_types = ['varchar', 'text', 'char', 'mediumtext', 'longtext', 'tinytext', 'nvarchar', 'ntext']
             
             for i, (col_name, col_type) in enumerate(columns):
-                # Sütun tipini kontrol et
                 is_text_column = any(text_type in col_type.lower() for text_type in text_types)
                 
                 self.column_vars[col_name] = tk.BooleanVar()
                 
-                # Checkbox oluştur
                 checkbox = tk.Checkbutton(
                     self.columns_scrollable_frame,
                     text=f"{col_name} ({col_type})",
@@ -500,7 +647,6 @@ class DatabaseGUI:
                 )
                 checkbox.grid(row=i, column=0, sticky=tk.W, pady=2)
                 
-                # Text sütunları otomatik seçili olsun
                 if is_text_column:
                     self.column_vars[col_name].set(True)
                     self.debug_log(f"Text sütun seçildi: {col_name}")
@@ -516,7 +662,6 @@ class DatabaseGUI:
             messagebox.showerror("Hata", "Lütfen bir tablo seçin!")
             return
         
-        # Seçilen sütunları al
         selected_columns = [col for col, var in self.column_vars.items() if var.get()]
         
         if not selected_columns:
@@ -537,26 +682,20 @@ class DatabaseGUI:
                 self.root.after(0, lambda: self.result_text.insert(tk.END, f"🔄 Seçilen sütunlar: {', '.join(selected_columns)}\n"))
                 self.root.after(0, lambda: self.result_text.insert(tk.END, f"📝 Mod: {'Veritabanına Kaydet' if self.translate_mode.get() == 'save_to_db' else 'Sadece Göster'}\n\n"))
                 
-                # Translator'ı güncelle
                 self.translator = GoogleTranslator(source='auto', target=self.target_lang.get())
                 self.debug_log(f"Translator hedef dil: {self.target_lang.get()}")
                 
-                # Tüm sütunları ve primary key'i al
                 if self.db_type.get() == "mysql":
                     self.cursor.execute(f"SHOW COLUMNS FROM {table_name}")
                     all_columns = [col[0] for col in self.cursor.fetchall()]
                     
-                    # Primary key'i bul
                     self.cursor.execute(f"SHOW KEYS FROM {table_name} WHERE Key_name = 'PRIMARY'")
                     pk_info = self.cursor.fetchone()
                     primary_key = pk_info[4] if pk_info else all_columns[0]
-                    
-                    self.debug_log(f"Primary key: {primary_key}")
                 else:
                     self.cursor.execute(f"SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '{table_name}'")
                     all_columns = [col[0] for col in self.cursor.fetchall()]
                     
-                    # Primary key'i bul
                     self.cursor.execute(f"""
                         SELECT COLUMN_NAME 
                         FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE 
@@ -566,10 +705,13 @@ class DatabaseGUI:
                     pk_info = self.cursor.fetchone()
                     primary_key = pk_info[0] if pk_info else all_columns[0]
                     
-                    self.debug_log(f"Primary key: {primary_key}")
+                self.debug_log(f"Primary key: {primary_key}")
                 
-                # Verileri çek
-                query = f"SELECT * FROM {table_name} LIMIT {limit}"
+                if self.db_type.get() == "mysql":
+                    query = f"SELECT * FROM {table_name} LIMIT {limit}"
+                else:
+                    query = f"SELECT TOP {limit} * FROM {table_name}"
+                    
                 self.debug_log(f"Veri çekme sorgusu: {query}")
                 self.cursor.execute(query)
                 rows = self.cursor.fetchall()
@@ -588,7 +730,6 @@ class DatabaseGUI:
                     self.root.after(0, lambda i=row_index, pk=pk_value: 
                                   self.result_text.insert(tk.END, f"🔍 Satır {i + 1} (ID: {pk}):\n"))
                     
-                    # Sadece seçilen sütunları çevir
                     updates = {}
                     for col_name in selected_columns:
                         if col_name in row_dict:
@@ -617,12 +758,10 @@ class DatabaseGUI:
                             else:
                                 self.debug_log(f"  Sütun atlandı (boş veya string değil)")
                     
-                    # Veritabanına kaydet
                     if self.translate_mode.get() == "save_to_db" and updates:
                         try:
                             self.debug_log(f"  Veritabanı güncelleme başlıyor...")
                             
-                            # UPDATE sorgusu oluştur
                             if self.db_type.get() == "mysql":
                                 set_clause = ", ".join([f"{col} = %s" for col in updates.keys()])
                                 update_query = f"UPDATE {table_name} SET {set_clause} WHERE {primary_key} = %s"
@@ -635,27 +774,26 @@ class DatabaseGUI:
                             self.debug_log(f"  UPDATE sorgusu: {update_query}")
                             self.debug_log(f"  Parametreler: {values}")
                             
-                            # Güncelleme öncesi mevcut değeri kontrol et
-                            check_query = f"SELECT {', '.join(updates.keys())} FROM {table_name} WHERE {primary_key} = {'%s' if self.db_type.get() == 'mysql' else '?'}"
+                            if self.db_type.get() == "mysql":
+                                check_query = f"SELECT {', '.join(updates.keys())} FROM {table_name} WHERE {primary_key} = %s"
+                            else:
+                                check_query = f"SELECT {', '.join(updates.keys())} FROM {table_name} WHERE {primary_key} = ?"
+                                
                             self.cursor.execute(check_query, (pk_value,))
                             before_values = self.cursor.fetchone()
                             self.debug_log(f"  Güncelleme öncesi değerler: {before_values}")
                             
-                            # UPDATE çalıştır
                             self.cursor.execute(update_query, values)
                             affected_rows = self.cursor.rowcount
                             self.debug_log(f"  Etkilenen satır sayısı: {affected_rows}")
                             
-                            # Commit yap
                             self.connection.commit()
                             self.debug_log("  Commit yapıldı")
                             
-                            # Güncelleme sonrası kontrol et
                             self.cursor.execute(check_query, (pk_value,))
                             after_values = self.cursor.fetchone()
                             self.debug_log(f"  Güncelleme sonrası değerler: {after_values}")
                             
-                            # Değişiklik kontrol et
                             if before_values != after_values:
                                 updated_count += 1
                                 self.root.after(0, lambda: self.result_text.insert(tk.END, "  ✅ Veritabanına kaydedildi ve değişiklik doğrulandı\n"))
@@ -679,7 +817,6 @@ class DatabaseGUI:
                     
                     self.root.after(0, lambda: self.result_text.insert(tk.END, "\n"))
                 
-                # Sonuç mesajı
                 if self.translate_mode.get() == "save_to_db":
                     self.root.after(0, lambda: self.result_text.insert(tk.END, 
                                   f"✅ İşlem tamamlandı! {len(rows)} satır işlendi, {updated_count} satır güncellendi, {error_count} hata.\n\n"))
@@ -702,7 +839,6 @@ class DatabaseGUI:
                 except:
                     pass
         
-        # Veri getirme işlemini ayrı thread'de çalıştır
         self.get_data_btn.config(state=tk.DISABLED, text="⏳ İşleniyor...")
         thread = threading.Thread(target=fetch_and_translate)
         thread.daemon = True
@@ -749,6 +885,7 @@ class DatabaseGUI:
                     f.write(f"username={self.username_entry.get()}\n")
                     f.write(f"password={self.password_entry.get()}\n")
                     f.write(f"port={self.port_entry.get()}\n")
+                    f.write(f"odbc_driver={self.odbc_driver.get()}\n")
             except Exception as e:
                 print(f"Bağlantı bilgileri kaydedilirken hata: {e}")
         else:
@@ -760,7 +897,7 @@ class DatabaseGUI:
             try:
                 with open(self.connection_file, 'r', encoding='utf-8') as f:
                     lines = f.readlines()
-                    if lines:  # Dosya boş değilse
+                    if lines:
                         self.remember_var.set(True)
                         for line in lines:
                             line = line.strip()
@@ -783,10 +920,9 @@ class DatabaseGUI:
                                 elif key == 'port':
                                     self.port_entry.delete(0, tk.END)
                                     self.port_entry.insert(0, value)
+                                elif key == 'odbc_driver':
+                                    self.odbc_driver.set(value)
                         self.update_connection_fields()
-                        # Checkbox'ı da tikle
-                        if hasattr(self, 'remember_check'):
-                            self.remember_check.select()
             except Exception as e:
                 print(f"Bağlantı bilgileri yüklenirken hata: {e}")
     
@@ -794,7 +930,7 @@ class DatabaseGUI:
         """Bağlantı bilgileri dosyasını temizle"""
         try:
             with open(self.connection_file, 'w', encoding='utf-8') as f:
-                f.write("")  # Dosyayı boş yap
+                f.write("")
         except Exception as e:
             print(f"Dosya temizlenirken hata: {e}")
         
