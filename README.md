@@ -63,7 +63,7 @@ Bu araç, veritabanınızdaki metin içeriklerini otomatik olarak çevirmek içi
         <small>MySQL ve MSSQL</small>
       </td>
       <td align="center" width="25%">
-        <img src="https://img.icons8.com/color/48/000000/translate.png" width="48px"/><br/>
+        <img src="https://img.icons8.com/color/48/google-translate.png" width="48px"/><br/>
         <b>Otomatik Çeviri</b><br/>
         <small>Google Translate API</small>
       </td>
@@ -80,7 +80,7 @@ Bu araç, veritabanınızdaki metin içeriklerini otomatik olarak çevirmek içi
     </tr>
     <tr>
       <td align="center" width="25%">
-        <img src="https://img.icons8.com/color/48/000000/debug.png" width="48px"/><br/>
+        <img src="https://img.icons8.com/color/48/bug.png" width="48px"/><br/>
         <b>Debug Modu</b><br/>
         <small>Detaylı log izleme</small>
       </td>
