@@ -21,7 +21,6 @@
 Bu araç, veritabanınızdaki metin içeriklerini otomatik olarak çevirmek için tasarlanmıştır. MySQL ve MSSQL veritabanlarına bağlanabilir, tablolarınızı görüntüleyebilir ve seçtiğiniz sütunlardaki metinleri Google Translate API kullanarak istediğiniz dile çevirebilirsiniz. Çevirilen içerikleri sadece görüntüleyebilir veya doğrudan veritabanına kaydedebilirsiniz.
 
 ### 📸 Ekran Görüntüleri
-
 <div align="center">
   <table>
     <tr>
@@ -39,12 +38,14 @@ Bu araç, veritabanınızdaki metin içeriklerini otomatik olarak çevirmek içi
         <img src="content/get-table.png" width="100%"/><br/>
         <b>Tabloları Listeleme</b>
       </td>
-        <td align="center" width="50%">
+      <td align="center" width="50%">
         <img src="content/select-table.png" width="100%"/><br/>
         <b>Listeden Tablo Seçme</b>
       </td>
-      <td align="center" width="50%">
-        <img src="content/film-table-data-translate.png" width="100%"/><br/>
+    </tr>
+    <tr>
+      <td align="center" colspan="2">
+        <img src="content/film-table-data-translate.png" width="50%"/><br/>
         <b>Veri Çevirisi</b>
       </td>
     </tr>
